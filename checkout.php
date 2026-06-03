@@ -65,9 +65,9 @@ $pdo->prepare("INSERT INTO orders (buyer_id, listing_id, total_amount, status, p
 $data = [
     'merchant_id'      => $merchant_id,
     'merchant_key'     => $merchant_key,
-    'return_url'       => 'https://throat-tidiness-exclude.ngrok-free.dev/priced2go/payment_return.php',
-    'cancel_url'       => 'https://throat-tidiness-exclude.ngrok-free.dev/priced2go/payment_cancel.php?id=' . $id,
-    'notify_url'       => 'https://throat-tidiness-exclude.ngrok-free.dev/priced2go/payment_notify.php',
+    'return_url'       => 'https://priced2go-website-production.up.railway.app/payment_return.php',
+    'cancel_url'       => 'https://priced2go-website-production.up.railway.app/payment_cancel.php?id=' . $id,
+    'notify_url'       => 'https://priced2go-website-production.up.railway.app/payment_notify.php',
     'name_first'       => $buyer['username'],
     'email_address'    => $buyer['email'],
     'm_payment_id'     => $m_payment_id,
