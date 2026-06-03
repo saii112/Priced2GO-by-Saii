@@ -63,12 +63,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $stmt = $pdo->prepare("INSERT INTO listings
-                (seller_id, title, description, category, listing_type, price, start_price, current_bid, end_time, image_path, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')");
+                (seller_id, title, description, category, listing_type, price, start_price, current_bid, end_time, image_path, condition_label, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')");
             $stmt->execute([
                 $_SESSION['user_id'], $title, $desc, $category,
                 $type, $fixed_price, $start_price, $start_price,
-                $end_time, $image_path
+                $end_time, $image_path, $cond
             ]);
             $new_id  = $pdo->lastInsertId();
             $success = true;

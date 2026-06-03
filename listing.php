@@ -86,7 +86,7 @@ include 'includes/header.php';
 
             <div class="border-top border-bottom py-3 mb-4 d-flex justify-content-between">
                 <span class="text-muted">Condition:</span>
-                <span class="fw-medium"><?= htmlspecialchars($l['condition'] ?? 'Not specified') ?></span>
+                <span class="fw-medium"><?= htmlspecialchars($l['condition_label'] ?? 'Not specified') ?></span>
             </div>
 
             <?php if ($error): ?>
