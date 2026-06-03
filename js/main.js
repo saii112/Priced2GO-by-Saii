@@ -1,6 +1,6 @@
-// Priced2GO – main.js
 
-// Auto-format card number with spaces
+
+// auto format card number with spaces
 document.addEventListener('input', function(e) {
     if (e.target.name === 'card_number') {
         let v = e.target.value.replace(/\D/g, '').substring(0, 16);
