@@ -87,6 +87,12 @@ include 'includes/header.php';
                                 </div>
                             </div>
                         </a>
+                        <!-- Edit button -->
+                        <div class="px-3 pb-3">
+                            <a href="edit_listing.php?id=<?= $l['listing_id'] ?>" class="btn btn-sm btn-outline-primary w-100">
+                                <i class="bi bi-pencil me-1"></i>Edit / Replace Photos
+                            </a>
+                        </div>
                     </div>
                 </div>
             <?php endforeach; ?>
