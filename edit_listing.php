@@ -3,19 +3,19 @@ require_once 'includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
 if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
 
-// admins do not own marketplace listings
+// admins dont have their own listings
 if ($_SESSION['role'] === 'admin') { header('Location: admin/index.php'); exit; }
 
 $id = intval($_GET['id'] ?? 0);
 if (!$id) { header('Location: my_listings.php'); exit; }
 
-// load the listing and verify the current user owns it
+// get the listing and make sure this user actually owns it
 $stmt = $pdo->prepare("SELECT * FROM listings WHERE listing_id = ? AND seller_id = ?");
 $stmt->execute([$id, $_SESSION['user_id']]);
 $l = $stmt->fetch();
 if (!$l) { header('Location: my_listings.php'); exit; }
 
-// current gallery images (fall back to the single image_path for older listings)
+// grab the current images, fall back to the old single image
 $images = [];
 try {
     $imgStmt = $pdo->prepare("SELECT image_path FROM listing_images WHERE listing_id = ? ORDER BY sort_order, image_id");
@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$title || !$category || !$cond || !$desc || ($is_fixed && $price <= 0)) {
         $error = 'Please fill in all required fields with valid values.';
     } else {
-        // optional: new images replace the existing gallery (up to MAX_IMAGES)
+        // if they upload new pics, those replace the old ones (max 5)
         $image_paths = [];
         if (!empty($_FILES['images']['name'][0])) {
             $allowed = ['image/jpeg','image/png','image/gif','image/webp'];
@@ -70,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (!$error) {
-            // update the core fields (price only applies to fixed-price listings)
+            // update the listing details (price only matters for fixed price)
             if ($is_fixed) {
                 $pdo->prepare("UPDATE listings SET title=?, description=?, category=?, condition_label=?, price=? WHERE listing_id=? AND seller_id=?")
                     ->execute([$title, $desc, $category, $cond, $price, $id, $_SESSION['user_id']]);
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ->execute([$title, $desc, $category, $cond, $id, $_SESSION['user_id']]);
             }
 
-            // if new photos were uploaded, replace the whole gallery
+            // swap out all the images if new ones came through
             if (!empty($image_paths)) {
                 $pdo->exec("CREATE TABLE IF NOT EXISTS listing_images (
                     image_id   INT AUTO_INCREMENT PRIMARY KEY,
@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // preserve edited values in the form if validation failed
+    // keep what they typed if something didnt validate
     $l['title'] = $title; $l['category'] = $category; $l['condition_label'] = $cond;
     $l['description'] = $desc; if ($l['listing_type'] === 'fixed') $l['price'] = $price;
 }

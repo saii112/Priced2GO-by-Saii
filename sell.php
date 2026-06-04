@@ -3,7 +3,7 @@ require_once 'includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
 if (!isset($_SESSION['user_id'])) { header('Location: login.php'); exit; }
 
-// disable admin sell function
+// stop admins from using the sell page
 if ($_SESSION['role'] === 'admin') {
     include 'includes/header.php';
     ?>
@@ -41,9 +41,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$title || !$category || !$cond || !$desc || $price <= 0) {
         $error = 'Please fill in all required fields with valid values.';
     } else {
-        // image upload (supports up to MAX_IMAGES images)
-        $image_path  = null;   // first image, kept on the listing for thumbnails
-        $image_paths = [];     // all uploaded images, in order
+        // deal with the image upload (up to 5 pics)
+        $image_path  = null;   // first pic, stays on the listing for the thumbnail
+        $image_paths = [];     // all the pics in order
         if (!empty($_FILES['images']['name'][0])) {
             $allowed = ['image/jpeg','image/png','image/gif','image/webp'];
             $count   = min(count($_FILES['images']['name']), MAX_IMAGES);
@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             $new_id  = $pdo->lastInsertId();
 
-            // store every uploaded image in listing_images for the gallery
+            // save all the pics in listing_images for the gallery
             if (!empty($image_paths)) {
                 $pdo->exec("CREATE TABLE IF NOT EXISTS listing_images (
                     image_id   INT AUTO_INCREMENT PRIMARY KEY,
@@ -244,7 +244,7 @@ function selectType(type) {
     document.getElementById('card-auction').classList.toggle('selected', type === 'auction');
     document.getElementById('fixedFields').classList.toggle('d-none', type === 'auction');
     document.getElementById('auctionFields').classList.toggle('d-none', type === 'fixed');
-    // Sync price field
+    // sync the price field
     const priceInput = document.querySelector('[name="price"]');
     const auctionInput = document.getElementById('auctionPrice');
     if (type === 'auction') {

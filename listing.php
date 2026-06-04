@@ -13,7 +13,7 @@ $stmt->execute([$id]);
 $l = $stmt->fetch();
 if (!$l) { header('Location: index.php'); exit; }
 
-// gallery images (fall back to the single image_path for older listings)
+// grab all the images, fall back to the old single image for older listings
 $images = [];
 try {
     $imgStmt = $pdo->prepare("SELECT image_path FROM listing_images WHERE listing_id = ? ORDER BY sort_order, image_id");
@@ -36,7 +36,7 @@ $recent_bids = $bids->fetchAll();
 
 $error = $msg = '';
 
-// handle bid submission
+// handle a new bid
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_bid'])) {
     if (!isset($_SESSION['user_id'])) {
         header('Location: login.php'); exit;
@@ -55,14 +55,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_bid'])) {
             ->execute([$amount, $id]);
         $l['current_bid'] = $amount;
         $msg = "Bid of R$amount placed successfully!";
-        // Refresh bids
+        // refresh the bids
         $bids->execute([$id]);
         $recent_bids = $bids->fetchAll();
     }
     }
 }
 
-// time remaining helper for auction
+// works out how much time is left on an auction
 function timeRemaining($end) {
     $diff = strtotime($end) - time();
     if ($diff <= 0) return 'Ended';
@@ -71,7 +71,7 @@ function timeRemaining($end) {
     return $days > 0 ? "$days days $hours hours" : "$hours hours";
 }
 
-// resolve a stored image name to a usable URL
+// turn a saved image name into a usable url
 function resolveImg($p) {
     if (!$p) return 'https://placehold.co/600x600/e5e7eb/9ca3af?text=No+Image';
     return str_starts_with($p, 'http') ? $p : 'uploads/' . htmlspecialchars($p);
