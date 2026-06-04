@@ -13,6 +13,19 @@ $stmt->execute([$id]);
 $l = $stmt->fetch();
 if (!$l) { header('Location: index.php'); exit; }
 
+// gallery images (fall back to the single image_path for older listings)
+$images = [];
+try {
+    $imgStmt = $pdo->prepare("SELECT image_path FROM listing_images WHERE listing_id = ? ORDER BY sort_order, image_id");
+    $imgStmt->execute([$id]);
+    $images = $imgStmt->fetchAll(PDO::FETCH_COLUMN);
+} catch (PDOException $e) {
+    $images = [];
+}
+if (empty($images) && !empty($l['image_path'])) {
+    $images = [$l['image_path']];
+}
+
 // recent bids
 $bids = $pdo->prepare("SELECT b.bid_amount, b.bid_time, u.username
                         FROM bids b JOIN users u ON u.user_id = b.bidder_id
@@ -58,9 +71,11 @@ function timeRemaining($end) {
     return $days > 0 ? "$days days $hours hours" : "$hours hours";
 }
 
-$img = $l['image_path']
-     ? (str_starts_with($l['image_path'], 'http') ? $l['image_path'] : 'uploads/'.htmlspecialchars($l['image_path']))
-     : 'https://placehold.co/600x600/e5e7eb/9ca3af?text=No+Image';
+// resolve a stored image name to a usable URL
+function resolveImg($p) {
+    if (!$p) return 'https://placehold.co/600x600/e5e7eb/9ca3af?text=No+Image';
+    return str_starts_with($p, 'http') ? $p : 'uploads/' . htmlspecialchars($p);
+}
 
 include 'includes/header.php';
 ?>
@@ -71,11 +86,45 @@ include 'includes/header.php';
     </a>
 
     <div class="row g-5 mt-1">
-        <!-- Image -->
+        <!-- Images -->
         <div class="col-lg-6">
-            <div class="product-image-wrap">
-                <img src="<?= $img ?>" alt="<?= htmlspecialchars($l['title']) ?>">
-            </div>
+            <?php if (count($images) > 1): ?>
+                <div id="productCarousel" class="carousel slide">
+                    <div class="carousel-inner rounded-3">
+                        <?php foreach ($images as $i => $imgPath): ?>
+                            <div class="carousel-item <?= $i === 0 ? 'active' : '' ?>">
+                                <div class="product-image-wrap">
+                                    <img src="<?= resolveImg($imgPath) ?>" alt="<?= htmlspecialchars($l['title']) ?>">
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon bg-dark rounded-circle p-3"></span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon bg-dark rounded-circle p-3"></span>
+                    </button>
+                    <div class="carousel-indicators">
+                        <?php foreach ($images as $i => $imgPath): ?>
+                            <button type="button" data-bs-target="#productCarousel" data-bs-slide-to="<?= $i ?>"
+                                    class="<?= $i === 0 ? 'active' : '' ?>"></button>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <!-- thumbnail strip -->
+                <div class="d-flex gap-2 mt-3 flex-wrap">
+                    <?php foreach ($images as $i => $imgPath): ?>
+                        <img src="<?= resolveImg($imgPath) ?>" role="button"
+                             class="rounded-2 border" style="width:64px;height:64px;object-fit:cover;"
+                             onclick="bootstrap.Carousel.getOrCreateInstance(document.getElementById('productCarousel')).to(<?= $i ?>)">
+                    <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <div class="product-image-wrap">
+                    <img src="<?= resolveImg($images[0] ?? null) ?>" alt="<?= htmlspecialchars($l['title']) ?>">
+                </div>
+            <?php endif; ?>
         </div>
 
         <!-- Details -->

@@ -31,6 +31,16 @@ CREATE TABLE IF NOT EXISTS listings (
     FOREIGN KEY (seller_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
+-- Stores all images for a listing (gallery, up to 5 per listing). The
+-- listings.image_path column keeps the first image for thumbnails / back-compat.
+CREATE TABLE IF NOT EXISTS listing_images (
+    image_id   INT AUTO_INCREMENT PRIMARY KEY,
+    listing_id INT NOT NULL,
+    image_path VARCHAR(255) NOT NULL,
+    sort_order INT DEFAULT 0,
+    FOREIGN KEY (listing_id) REFERENCES listings(listing_id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS bids (
     bid_id     INT AUTO_INCREMENT PRIMARY KEY,
     listing_id INT NOT NULL,

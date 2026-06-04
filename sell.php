@@ -26,6 +26,7 @@ if ($_SESSION['role'] === 'admin') {
 
 $error = $success = '';
 $cats = ['Electronics','Musical Instruments','Fashion','Sports','Accessories','Home & Kitchen'];
+const MAX_IMAGES = 5;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title    = trim($_POST['title'] ?? '');
@@ -40,19 +41,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$title || !$category || !$cond || !$desc || $price <= 0) {
         $error = 'Please fill in all required fields with valid values.';
     } else {
-        // image upload
-        $image_path = null;
-        if (!empty($_FILES['image']['name'])) {
+        // image upload (supports up to MAX_IMAGES images)
+        $image_path  = null;   // first image, kept on the listing for thumbnails
+        $image_paths = [];     // all uploaded images, in order
+        if (!empty($_FILES['images']['name'][0])) {
             $allowed = ['image/jpeg','image/png','image/gif','image/webp'];
-            if (!in_array($_FILES['image']['type'], $allowed)) {
-                $error = 'Only JPG, PNG, GIF and WEBP images are allowed.';
-            } elseif ($_FILES['image']['size'] > 10 * 1024 * 1024) {
-                $error = 'Image must be under 10MB.';
-            } else {
-                $ext        = pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION);
-                $image_path = uniqid('img_', true) . '.' . $ext;
-                move_uploaded_file($_FILES['image']['tmp_name'], "uploads/$image_path");
+            $count   = min(count($_FILES['images']['name']), MAX_IMAGES);
+            for ($i = 0; $i < $count && !$error; $i++) {
+                if ($_FILES['images']['error'][$i] !== UPLOAD_ERR_OK) continue;
+                if (!in_array($_FILES['images']['type'][$i], $allowed)) {
+                    $error = 'Only JPG, PNG, GIF and WEBP images are allowed.';
+                } elseif ($_FILES['images']['size'][$i] > 10 * 1024 * 1024) {
+                    $error = 'Each image must be under 10MB.';
+                } else {
+                    $ext  = pathinfo($_FILES['images']['name'][$i], PATHINFO_EXTENSION);
+                    $name = uniqid('img_', true) . '.' . $ext;
+                    if (move_uploaded_file($_FILES['images']['tmp_name'][$i], "uploads/$name")) {
+                        $image_paths[] = $name;
+                    }
+                }
             }
+            $image_path = $image_paths[0] ?? null;
         }
 
         if (!$error) {
@@ -71,6 +80,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $end_time, $image_path, $cond
             ]);
             $new_id  = $pdo->lastInsertId();
+
+            // store every uploaded image in listing_images for the gallery
+            if (!empty($image_paths)) {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS listing_images (
+                    image_id   INT AUTO_INCREMENT PRIMARY KEY,
+                    listing_id INT NOT NULL,
+                    image_path VARCHAR(255) NOT NULL,
+                    sort_order INT DEFAULT 0,
+                    FOREIGN KEY (listing_id) REFERENCES listings(listing_id) ON DELETE CASCADE
+                )");
+                $imgStmt = $pdo->prepare("INSERT INTO listing_images (listing_id, image_path, sort_order) VALUES (?, ?, ?)");
+                foreach ($image_paths as $idx => $p) {
+                    $imgStmt->execute([$new_id, $p, $idx]);
+                }
+            }
+
             $success = true;
             header("Location: listing.php?id=$new_id");
             exit;
@@ -119,20 +144,21 @@ include 'includes/header.php';
                         <input type="hidden" name="listing_type" id="listing_type" value="fixed">
                     </div>
 
-                    <!-- Image upload -->
+                    <!-- Image upload (up to 5) -->
                     <div class="mb-3">
-                        <label class="form-label fw-medium">Product Image</label>
+                        <label class="form-label fw-medium">Product Images</label>
                         <div class="dropzone" id="dropzone" onclick="document.getElementById('imageInput').click()">
                             <i class="bi bi-cloud-upload fs-1 text-muted d-block mb-2"></i>
-                            <div class="text-muted">Click to upload an image</div>
-                            <div class="text-muted small">PNG, JPG, GIF up to 10MB</div>
-                            <input type="file" name="image" id="imageInput" accept="image/*"
-                                   class="d-none" onchange="previewImage(event)">
+                            <div class="text-muted">Click to upload images</div>
+                            <div class="text-muted small">Up to 5 images. PNG, JPG, GIF up to 10MB each</div>
+                            <input type="file" name="images[]" id="imageInput" accept="image/*"
+                                   class="d-none" multiple onchange="previewImage(event)">
                         </div>
-                        <div id="previewWrap" class="d-none mt-2 position-relative">
-                            <img id="imgPreview" class="rounded-3 w-100" style="max-height:260px;object-fit:cover;" src="" alt="Preview">
-                            <button type="button" class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2"
-                                    onclick="removeImage()"><i class="bi bi-x-lg"></i></button>
+                        <div id="previewWrap" class="d-none mt-2">
+                            <div id="previewGrid" class="row g-2"></div>
+                            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" onclick="removeImage()">
+                                <i class="bi bi-x-lg"></i> Clear images
+                            </button>
                         </div>
                     </div>
 
@@ -210,6 +236,8 @@ include 'includes/header.php';
 </div>
 
 <script>
+const MAX_IMAGES = 5;
+
 function selectType(type) {
     document.getElementById('listing_type').value = type;
     document.getElementById('card-fixed').classList.toggle('selected', type === 'fixed');
@@ -230,19 +258,31 @@ function selectType(type) {
 }
 
 function previewImage(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = e => {
-        document.getElementById('imgPreview').src = e.target.result;
-        document.getElementById('dropzone').classList.add('d-none');
-        document.getElementById('previewWrap').classList.remove('d-none');
-    };
-    reader.readAsDataURL(file);
+    let files = Array.from(event.target.files);
+    if (!files.length) return;
+    if (files.length > MAX_IMAGES) {
+        alert('You can upload a maximum of ' + MAX_IMAGES + ' images. Only the first ' + MAX_IMAGES + ' will be used.');
+        files = files.slice(0, MAX_IMAGES);
+    }
+    const grid = document.getElementById('previewGrid');
+    grid.innerHTML = '';
+    files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = e => {
+            const col = document.createElement('div');
+            col.className = 'col-4 col-md-3';
+            col.innerHTML = '<img class="rounded-3 w-100" style="aspect-ratio:1/1;object-fit:cover;" src="' + e.target.result + '">';
+            grid.appendChild(col);
+        };
+        reader.readAsDataURL(file);
+    });
+    document.getElementById('dropzone').classList.add('d-none');
+    document.getElementById('previewWrap').classList.remove('d-none');
 }
 
 function removeImage() {
     document.getElementById('imageInput').value = '';
+    document.getElementById('previewGrid').innerHTML = '';
     document.getElementById('dropzone').classList.remove('d-none');
     document.getElementById('previewWrap').classList.add('d-none');
 }
