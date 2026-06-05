@@ -76,13 +76,19 @@ $data = [
     'item_description' => substr($l['description'] ?? '', 0, 255),
 ];
 
-// md5 signature generation
+// md5 signature, skip empty values like payfasts own example
+foreach ($data as $k => $v) { $data[$k] = trim($v); }   // trim so posted values match what we sign
 $pfOutput = '';
 foreach ($data as $key => $val) {
-    $pfOutput .= $key . '=' . urlencode(trim($val)) . '&';
+    if ($val !== '') {
+        $pfOutput .= $key . '=' . urlencode($val) . '&';
+    }
 }
-$pfOutput .= 'passphrase=' . urlencode(trim($passphrase));
-$data['signature'] = md5($pfOutput);
+$getString = substr($pfOutput, 0, -1);
+if (!empty($passphrase)) {
+    $getString .= '&passphrase=' . urlencode(trim($passphrase));
+}
+$data['signature'] = md5($getString);
 
 include 'includes/header.php';
 ?>
