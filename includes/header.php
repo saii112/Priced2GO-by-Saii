@@ -29,6 +29,10 @@ $inAdmin = str_contains($_SERVER['PHP_SELF'], '/admin/');
                 <li class="nav-item">
                     <a class="nav-link <?= $current === 'index.php' ? 'active fw-medium text-primary' : '' ?>" href="<?= $inAdmin ? '../' : '' ?>index.php">Browse</a>
                 </li>
+                <!-- support page link -->
+                <li class="nav-item">
+                    <a class="nav-link <?= $current === 'support.php' ? 'active fw-medium text-primary' : '' ?>" href="<?= $inAdmin ? '../' : '' ?>support.php">Support</a>
+                </li>
                 <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'admin'): ?>
                 <li class="nav-item">
                     <a class="nav-link <?= $current === 'sell.php' ? 'active fw-medium text-primary' : '' ?>" href="<?= $inAdmin ? '../' : '' ?>sell.php">Sell Item</a>
